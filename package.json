@@ -1,0 +1,38 @@
+{
+  "name": "bess-sizing-toolkit",
+  "version": "1.0.0",
+  "description": "Dependency-free sizing and ROI math for LiFePO4 battery energy storage, with step-by-step output and chemistry/temperature corrections.",
+  "main": "src/bess-sizing.js",
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node test/bess-sizing.test.js"
+  },
+  "keywords": [
+    "bess",
+    "energy-storage",
+    "lifepo4",
+    "lithium",
+    "battery-sizing",
+    "off-grid",
+    "solar-storage",
+    "payback",
+    "roi",
+    "peak-valley",
+    "inverter",
+    "renewable-energy"
+  ],
+  "author": "NENGTUO",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_ACCOUNT/bess-sizing-toolkit.git"
+  },
+  "homepage": "https://github.com/YOUR_ACCOUNT/bess-sizing-toolkit#readme",
+  "engines": {
+    "node": ">=14"
+  }
+}

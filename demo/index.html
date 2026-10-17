@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>bess-sizing-toolkit demo — LFP storage sizing &amp; ROI</title>
+<meta name="description" content="Dependency-free demo of the bess-sizing-toolkit: battery capacity sizing with temperature derating, solar yield estimate, and C&amp;I storage payback." />
+<style>
+  :root { color-scheme: light dark; }
+  body { font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif; margin: 0; background: #f6f8f7; color: #16232b; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 26px; margin: 0 0 6px; }
+  .sub { color: #5b6b7f; margin: 0 0 28px; font-size: 15px; }
+  .card { background: #fff; border: 1px solid #e2e8e5; border-radius: 10px; padding: 20px; margin-bottom: 22px; }
+  h2 { font-size: 18px; margin: 0 0 4px; }
+  .hint { color: #6b7a8c; font-size: 13px; margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px; }
+  label { display: block; font-size: 13px; color: #4a5a6a; margin-bottom: 5px; }
+  input, select { width: 100%; padding: 9px 11px; border: 1px solid #cfd8dd; border-radius: 6px; font-size: 15px; font-family: inherit; background: #fff; color: inherit; }
+  button { width: 100%; padding: 11px; border: 0; border-radius: 6px; background: #0f7a5a; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  button:hover { filter: brightness(1.07); }
+  .out { margin-top: 18px; display: none; }
+  .out.show { display: block; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dashed #e2e8e5; }
+  .row:last-child { border-bottom: 0; }
+  .row span:first-child { font-size: 14px; color: #55677a; }
+  .row span:last-child { font-size: 17px; font-weight: 700; color: #0f7a5a; font-variant-numeric: tabular-nums; }
+  .note { margin-top: 14px; font-size: 12.5px; color: #64748b; line-height: 1.6; }
+  .warn { margin-top: 10px; font-size: 12.5px; color: #a4571b; line-height: 1.6; }
+  footer { color: #7a8794; font-size: 13px; text-align: center; margin-top: 10px; }
+  code { background: #eef2f0; padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>bess-sizing-toolkit</h1>
+  <p class="sub">Dependency-free LFP storage sizing &amp; ROI math — live demo. Every result shows its intermediate steps.</p>
+
+  <div class="card">
+    <h2>1. Battery capacity for backup</h2>
+    <p class="hint">Includes chemistry-aware depth of discharge and an optional cold-temperature derate.</p>
+    <div class="grid">
+      <div><label for="load">Load (kW)</label><input id="load" type="number" value="5" step="0.1"></div>
+      <div><label for="hours">Backup (hours)</label><input id="hours" type="number" value="4" step="0.5"></div>
+      <div><label for="eff">Efficiency</label><select id="eff"><option value="0.90">90%</option><option value="0.93">93%</option><option value="0.95" selected>95%</option><option value="0.97">97%</option></select></div>
+      <div><label for="dod">Depth of discharge</label><select id="dod"><option value="0.5">50% lead-acid</option><option value="0.8" selected>80% LFP</option><option value="0.9">90% LFP high-cycle</option></select></div>
+      <div><label for="temp">Temperature factor</label><select id="temp"><option value="1" selected>1.00 rated</option><option value="0.9">0.90 cold</option><option value="0.85">0.85 (-20 C)</option></select></div>
+    </div>
+    <button id="btn1">Calculate</button>
+    <div class="out" id="out1">
+      <div class="row"><span>Required (nominal)</span><span id="r1a">—</span></div>
+      <div class="row"><span>After temperature derate</span><span id="r1b">—</span></div>
+      <div class="row"><span>Buildable configuration</span><span id="r1c">—</span></div>
+      <div class="row"><span>Inverter sizing (1.2×)</span><span id="r1d">—</span></div>
+      <div class="note" id="n1"></div>
+      <div class="warn" id="w1"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2. Solar yield and self-consumption value</h2>
+    <p class="hint">Peak sun hours: central Russia 3–3.5 · SE Asia 4.5–5.5 · Middle East 5.5–6.5 · Southern Europe 4.5–5.5.</p>
+    <div class="grid">
+      <div><label for="kwp">System size (kWp)</label><input id="kwp" type="number" value="10" step="0.5"></div>
+      <div><label for="sun">Peak sun hours (h/day)</label><input id="sun" type="number" value="4" step="0.1"></div>
+      <div><label for="pr">Performance ratio</label><select id="pr"><option value="0.70">0.70</option><option value="0.75">0.75</option><option value="0.80" selected>0.80</option><option value="0.85">0.85</option></select></div>
+      <div><label for="deg">Annual degradation</label><select id="deg"><option value="0.002">0.2%</option><option value="0.005">0.5%</option><option value="0.02" selected>2%</option></select></div>
+      <div><label for="tariff">Tariff per kWh</label><input id="tariff" type="number" value="0.65" step="0.01"></div>
+      <div><label for="self">Self-consumption</label><select id="self"><option value="0.3">30%</option><option value="0.5">50%</option><option value="0.7">70%</option><option value="1" selected>100%</option></select></div>
+    </div>
+    <button id="btn2">Estimate</button>
+    <div class="out" id="out2">
+      <div class="row"><span>Annual generation</span><span id="r2a">—</span></div>
+      <div class="row"><span>Monthly average</span><span id="r2b">—</span></div>
+      <div class="row"><span>Equivalent full-load hours</span><span id="r2c">—</span></div>
+      <div class="row"><span>Annual bill value</span><span id="r2d">—</span></div>
+      <div class="row"><span>10-year cumulative</span><span id="r2e">—</span></div>
+      <div class="warn" id="w2"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>3. C&amp;I storage payback</h2>
+    <p class="hint">Static payback from the peak-to-valley tariff spread. Excludes demand-charge savings and degradation.</p>
+    <div class="grid">
+      <div><label for="cap">Capacity (kWh)</label><input id="cap" type="number" value="200" step="10"></div>
+      <div><label for="peak">Peak price</label><input id="peak" type="number" value="1.20" step="0.01"></div>
+      <div><label for="valley">Valley price</label><input id="valley" type="number" value="0.45" step="0.01"></div>
+      <div><label for="capex">Total capex</label><input id="capex" type="number" value="260000" step="1000"></div>
+      <div><label for="load2">Daytime load (kWh/yr)</label><input id="load2" type="number" value="6000" step="100"></div>
+    </div>
+    <button id="btn3">Estimate</button>
+    <div class="out" id="out3">
+      <div class="row"><span>Daily arbitrage saving</span><span id="r3a">—</span></div>
+      <div class="row"><span>Annual saving</span><span id="r3b">—</span></div>
+      <div class="row"><span>Static payback</span><span id="r3c">—</span></div>
+      <div class="row"><span>Self-consumption ratio</span><span id="r3d">—</span></div>
+      <div class="note" id="n3"></div>
+      <div class="warn" id="w3"></div>
+    </div>
+  </div>
+
+  <footer>MIT licensed · no dependencies · <code>npm test</code> runs 16 test cases</footer>
+</div>
+
+<script src="../src/bess-sizing.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n, d) { return Number(n).toLocaleString("en-US", { minimumFractionDigits: d || 0, maximumFractionDigits: d || 0 }); };
+  var esc = function (s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+  var notes = function (el, steps) {
+    el.innerHTML = steps.map(function (s) {
+      return esc(s.label + ": ") + "<code>" + esc(s.value + (s.unit ? " " + s.unit : "")) + "</code> — " + esc(s.formula);
+    }).join("<br>");
+  };
+  var warns = function (el, list) { if (list && list.length) el.textContent = "⚠ " + list.join(" "); };
+
+  $("btn1").addEventListener("click", function () {
+    try {
+      var r = BESS.sizeBatteryCapacity({
+        loadKw: $("load").value, backupHours: $("hours").value,
+        efficiency: $("eff").value, dod: $("dod").value,
+        temperatureFactor: $("temp").value
+      });
+      $("r1a").textContent = fmt(r.nominalKwh, 1) + " kWh";
+      $("r1b").textContent = fmt(r.deratedKwh, 1) + " kWh";
+      $("r1c").textContent = fmt(r.buildableKwh, 0) + " kWh";
+      $("r1d").textContent = fmt(r.inverterKw, 1) + " kW";
+      notes($("n1"), r.steps);
+      warns($("w1"), r.warnings);
+      $("out1").classList.add("show");
+    } catch (e) { alert(e.message); }
+  });
+
+  $("btn2").addEventListener("click", function () {
+    try {
+      var r = BESS.estimateSolarYield({
+        kwp: $("kwp").value, peakSunHours: $("sun").value, pr: $("pr").value,
+        degradation: $("deg").value, tariff: $("tariff").value, selfConsumption: $("self").value
+      });
+      $("r2a").textContent = fmt(r.annualKwh) + " kWh";
+      $("r2b").textContent = fmt(r.monthlyKwh) + " kWh";
+      $("r2c").textContent = fmt(r.equivalentFullLoadHours) + " h";
+      $("r2d").textContent = fmt(r.annualSaving, 0);
+      $("r2e").textContent = fmt(r.cumulativeKwh) + " kWh";
+      warns($("w2"), r.warnings);
+      $("out2").classList.add("show");
+    } catch (e) { alert(e.message); }
+  });
+
+  $("btn3").addEventListener("click", function () {
+    try {
+      var spread = parseFloat($("peak").value) - parseFloat($("valley").value);
+      var r = BESS.estimateStoragePayback({ capacityKwh: $("cap").value, tariffSpread: spread, capex: $("capex").value });
+      var s = BESS.assessStorageNeed({ daytimeLoadKwh: $("load2").value, pvAnnualKwh: 6000 });
+      $("r3a").textContent = fmt(r.dailySaving, 0);
+      $("r3b").textContent = fmt(r.annualSaving, 0);
+      $("r3c").textContent = r.paybackYears === null ? "capex required" : fmt(r.paybackYears, 1) + " years";
+      $("r3d").textContent = fmt(s.ratio * 100, 0) + "% — " + s.verdict;
+      notes($("n3"), r.steps);
+      $("n3").innerHTML += "<br>" + esc(s.recommendation);
+      warns($("w3"), r.warnings);
+      $("out3").classList.add("show");
+    } catch (e) { alert(e.message); }
+  });
+})();
+</script>
+</body>
+</html>
